@@ -20,7 +20,8 @@ $my_graph->set(
 	l_margin => 15,
 	r_margin => 15,
 
-	start_angle => 235,
+	#start_angle => 235,
+	start_angle => 5,
 
 	transparent => 0,
 );

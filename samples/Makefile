@@ -6,7 +6,7 @@
 # Run the examples by hand, one by one, or do something like
 #
 # tcsh> foreach s (*.pl)
-# foreach> perl -I. -I../lib -Tw $s
+# foreach> perl -I. -I../blib/lib -Tw $s
 # foreach> end
 #
 # If you use an old version of GD that exports GIF, you will need to
@@ -17,7 +17,7 @@
 
 PERL = perl
 EXTRA_OPTS = 
-OPTIONS = -I. -I../blib/lib $(EXTRA_OPTS) -w
+OPTIONS = -I. -I../blib/lib -I../blib/arch $(EXTRA_OPTS) -w
 
 EXT := $(shell perl $(OPTIONS) -MGD::Graph \
 		-e 'print scalar GD::Graph::export_format')
