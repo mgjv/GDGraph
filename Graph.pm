@@ -19,7 +19,7 @@
 #       GD::Graph::pie
 #       GD::Graph::mixed
 #
-# $Id: Graph.pm,v 1.53 2003/07/01 04:56:57 mgjv Exp $
+# $Id: Graph.pm,v 1.54 2003/07/13 07:23:24 mgjv Exp $
 #
 #==========================================================================
 
@@ -31,8 +31,8 @@
 
 package GD::Graph;
 
-($GD::Graph::prog_version) = '$Revision: 1.53 $' =~ /\s([\d.]+)/;
-$GD::Graph::VERSION = '1.43';
+($GD::Graph::prog_version) = '$Revision: 1.54 $' =~ /\s([\d.]+)/;
+$GD::Graph::VERSION = '1.44';
 
 use strict;
 use GD;
@@ -486,6 +486,12 @@ sub can_do_ttf
 {
     my $proto = shift;
     return GD::Text->can_do_ttf;
+}
+
+sub can_do_filledArc
+{
+    my $proto = shift;
+    GD::Image->can('filledArc');
 }
 
 # DEBUGGING

@@ -17,6 +17,8 @@ $my_graph->set(
     dclrs 		=> [ 'lblue' ],
     accentclr 		=> 'lgray',
 
+    start_angle		=> 3,
+
     transparent 	=> 0,
 );
 

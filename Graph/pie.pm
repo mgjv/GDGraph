@@ -5,13 +5,13 @@
 #   Name:
 #       GD::Graph::pie.pm
 #
-# $Id: pie.pm,v 1.20 2003/02/10 22:12:41 mgjv Exp $
+# $Id: pie.pm,v 1.21 2003/07/13 07:23:25 mgjv Exp $
 #
 #==========================================================================
 
 package GD::Graph::pie;
 
-($GD::Graph::pie::VERSION) = '$Revision: 1.20 $' =~ /\s([\d.]+)/;
+($GD::Graph::pie::VERSION) = '$Revision: 1.21 $' =~ /\s([\d.]+)/;
 
 use strict;
 
@@ -85,6 +85,7 @@ sub plot
     $self->draw_text()              or return;
     $self->draw_pie()               or return;
     $self->draw_data()              or return;
+#    $self->draw_pie_slices()	    or return;
 
     return $self->{graph};
 }
@@ -156,7 +157,6 @@ sub setup_text
 
     if ( $self->{title} ) 
     {
-        #print "'$s->{title}' at ($s->{xc},$s->{t_margin})\n";
         $self->{gdta_title}->set(colour => $self->{tci});
         $self->{gdta_title}->set_text($self->{title});
     }
@@ -183,6 +183,118 @@ sub draw_text
         if $self->{label};
     
     return $self;
+}
+
+# Expect levelled angles!
+sub draw_pie_slice_top
+{
+    my $self = shift;
+    my ($pa, $pb, $ac, $dc) = @_;
+
+    my ($xa, $ya) = $self->edge_coords($pa);
+    my ($xb, $yb) = $self->edge_coords($pb);
+
+    my $gd = $self->{graph};
+
+    $gd->line($self->{xc}, $self->{yc}, $xa, $ya, $ac);
+    $gd->line($self->{xc}, $self->{yc}, $xb, $yb, $ac);
+
+    my($gdpa, $gdpb) = map { $_ + $ANGLE_OFFSET } $pa, $pb;
+    $gd->arc($self->{xc}, $self->{yc}, $self->{w}, $self->{h}, 
+             $gdpa, $gdpb, $ac);
+
+    my ($xf, $yf) = cartesian(
+	    3 * $self->{w}/8, ($pa+$pb)/2,
+	    $self->{xc}, $self->{yc}, $self->{h}/$self->{w});
+    $gd->fillToBorder($xf, $yf, $ac, $dc);
+}
+
+# Expect levelled angles!
+sub draw_pie_slice_side
+{
+    my $self = shift;
+    my ($pa, $pb, $ac, $dc) = @_;
+    return unless in_front($pa) or in_front($pb);
+
+    $pa = level_angle($pa);
+    $pb = level_angle($pb);
+
+    # Adjust angles to sides if one of the angles isn't in front
+    $pa = $ANGLE_OFFSET - 180 if in_front($pb) and not in_front($pa);
+    $pb = $ANGLE_OFFSET       if in_front($pa) and not in_front($pb);
+
+    my ($xa, $ya) = $self->edge_coords($pa);
+    my ($xb, $yb) = $self->edge_coords($pb);
+
+    my $gd = $self->{graph};
+
+    if ($pa > $pb)
+    {
+	# slice wraps around the pie, both ends showing, left and
+	# right. We need to draw two front bits.
+    }
+    else
+    {
+	# slice entirely at the front
+        $gd->line($xa, $ya, $xa, $ya + $self->{pie_height}, $ac);
+        $gd->line($xb, $yb, $xb, $yb + $self->{pie_height}, $ac);
+	my($gdpa, $gdpb) = map { $_ + $ANGLE_OFFSET } $pa, $pb;
+	$gd->arc($self->{xc}, $self->{yc} + $self->{pie_height}, 
+			    $self->{w}, $self->{h},
+			    $gdpa, $gdpb, $ac);
+	# Estimate point to fill
+	my ($xf, $yf) = $self->edge_coords(($pa + $pb)/2);
+	$gd->fillToBorder($xf, $yf + $self->{pie_height}/2, $ac, $dc);
+    }
+}
+
+sub draw_pie_slice_text
+{
+    my $self = shift;
+}
+
+sub draw_pie_slices
+{
+    my $self = shift;
+
+    my $total = 0;
+    my @values = $self->{_data}->y_values(1);   # for now, only one pie..
+    for (@values)
+    {   
+        $total += $_ 
+    }
+
+    return $self->_set_error("Pie data total is <= 0") 
+        unless $total > 0;
+
+    my $ac = $self->{acci};         # Accent colour
+    my $pb = $self->{start_angle};
+
+    #for (my $i = 0; $i < 2; $i++)
+    for (my $i = 0; $i < @values; $i++)
+    {
+        # Set the data colour
+        my $dc = $self->set_clr_uniq($self->pick_data_clr($i + 1));
+
+        # Set the angles of the pie slice
+        # Angle 0 faces down, positive angles are clockwise 
+        # from there.
+        #         ---
+        #        /   \
+        #        |    |
+        #        \ | /
+        #         ---
+        #          0
+        # $pa/$pb include the start_angle (so if start_angle
+        # is 90, there will be no pa/pb < 90.
+        my $pa = $pb;
+        $pb += 360 * $values[$i]/$total;
+
+	$self->draw_pie_slice_top($pa, $pb, $ac, $dc);
+	$self->draw_pie_slice_side($pa, $pb, $ac, $dc)
+	    if $self->{'3d'};
+	$self->draw_pie_slice_text($pa, $pb, $ac, $dc);
+    }
 }
 
 # draw the pie, without the data slices
@@ -255,7 +367,7 @@ sub draw_data
         # $pa/$pb include the start_angle (so if start_angle
         # is 90, there will be no pa/pb < 90.
         my $pa = $pb;
-        $pb += my $slice_angle = 360 * $values[$i]/$total;
+        $pb += 360 * $values[$i]/$total;
 
         # Calculate the end points of the lines at the boundaries of
         # the pie slice
@@ -328,6 +440,13 @@ sub draw_data
 
 } #GD::Graph::pie::draw_data
 
+# _get_pie_front_coords
+#
+# Given a start and end angle for a pie slice, this returns the
+# coordinates on the pie edge at the front. If either of the angles is
+# not at the front of the pie, it will return the side coordinate of the
+# pie. In any case, what comes back can be used to draw vertical lines.
+#
 sub _get_pie_front_coords # (angle 1, angle 2)
 {
     my $self = shift;
@@ -340,9 +459,8 @@ sub _get_pie_front_coords # (angle 1, angle 2)
         if (in_front($pb))
         {
             # both in front
-            # don't do anything
-            # Ah, but if this wraps all the way around the back
-            # then both pieces of the front need to be filled.
+	    # If this wraps all the way around the back then both pieces
+	    # of the front need to be filled.
             # sbonds.
             if ($pa > $pb ) 
             {
@@ -435,12 +553,20 @@ sub put_slice_label
 # $ANGLE_OFFSET is used to define where 0 is meant to be
 sub cartesian
 {
-    my ($r, $phi, $xi, $yi, $cr) = @_; 
+    my ($r, $phi, $xi, $yi, $scale) = @_; 
 
-    return (
-        $xi + $r * cos(PI * ($phi + $ANGLE_OFFSET)/180), 
-        $yi + $cr * $r * sin(PI * ($phi + $ANGLE_OFFSET)/180)
-    )
+    return ($xi +          $r * cos(PI * ($phi + $ANGLE_OFFSET)/180),
+            $yi + $scale * $r * sin(PI * ($phi + $ANGLE_OFFSET)/180));
+}
+
+# return coordinates on the edge of the pie, given an angle
+sub edge_coords
+{
+    my $self = shift;
+    my $angle = shift;
+
+    return cartesian($self->{w}/2, $angle, 
+                     $self->{xc}, $self->{yc}, $self->{h}/$self->{w});
 }
 
 "Just another true value";
