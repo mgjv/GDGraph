@@ -347,7 +347,8 @@ sub _read_logo_file
             pack("H8",'ffd8ffe0') => "jpeg",
             'GIF8' => "gif",
             '.PNG' => "png",
-            '/* X'=> "xpm", # technically '/* XPM */', but I'm hashing, here
+            '/* X' => "xpm", # technically '/* XPM */', but I'm hashing, here
+            '#def' => "xbm",
         );
         if (my $match = $magic{ substr $logodata, 0, 4 }) {
             push @tried, $match;
@@ -362,6 +363,9 @@ sub _read_logo_file
                     $glogo = GD::Image->$gdimport(\*LOGO);
                 }
             }
+        } elsif ($logo_path =~ /_xbm_/) { # no magic possible for xbm
+            push @tried, 'xbm';
+            $glogo = GD::Image->newFromXbm($logo_path);
         # should this actually be "if (!$glogo), rather than an else?            
         } else { # Hail Mary, full of Grace!  Blessed art thou among women...
             push @tried, 'libgd best-guess';
